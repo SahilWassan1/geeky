@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Compliance Wiki — Indian statutory law, one register</title>
+    <meta
+      name="description"
+      content="Every Indian Act, rule and amendment in one searchable register, with the source and verification status on every entry — and the ingestion pipeline running in the open."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@400;500&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="src/styles.css" />
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="shell masthead-inner">
+        <h1 class="wordmark">
+          Compliance Wiki <span>Indian statutory law, one register</span>
+        </h1>
+        <div class="sync">
+          <span class="pulse" id="pulse" aria-hidden="true"></span>
+          <span id="sync-text">42 sources watched</span>
+        </div>
+      </div>
+      <div class="shell tabbar">
+        <div class="tabs" role="tablist" aria-label="Views">
+          <button class="tab" role="tab" id="tab-register" aria-selected="true" data-view="register">
+            Register<span class="badge" id="badge-new" hidden>0</span>
+          </button>
+          <button class="tab" role="tab" id="tab-pipeline" aria-selected="false" data-view="pipeline">
+            Pipeline
+          </button>
+          <button class="tab" role="tab" id="tab-sources" aria-selected="false" data-view="sources">
+            Sources
+          </button>
+          <button class="tab" role="tab" id="tab-accuracy" aria-selected="false" data-view="accuracy">
+            Accuracy
+          </button>
+          <button class="tab" role="tab" id="tab-method" aria-selected="false" data-view="method">
+            Method
+          </button>
+        </div>
+        <div class="transport">
+          <span class="simclock" id="simclock">11:20</span>
+          <button type="button" id="playpause" aria-pressed="false">Pause</button>
+          <button type="button" class="speed" data-speed="1" aria-pressed="true">1×</button>
+          <button type="button" class="speed" data-speed="3" aria-pressed="false">3×</button>
+          <button type="button" class="speed" data-speed="8" aria-pressed="false">8×</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- ------------------------------- register -->
+      <section class="view" id="view-register" role="tabpanel" aria-labelledby="tab-register">
+        <div class="search-band">
+          <div class="shell">
+            <div class="search-row">
+              <label class="visually-hidden" for="search">Search the register</label>
+              <input
+                id="search"
+                type="search"
+                autocomplete="off"
+                placeholder="Search by section, rule, form, or issuing body"
+              />
+            </div>
+            <p class="search-note">
+              Try &ldquo;section 135&rdquo;, &ldquo;GSTR-9C&rdquo;, &ldquo;DIR-3&rdquo;, or
+              &ldquo;commencement&rdquo;. Open any entry for its full provenance.
+            </p>
+          </div>
+        </div>
+
+        <div class="shell">
+          <div class="filters">
+            <div class="filter-group">
+              <span class="filter-label">Law</span>
+              <div class="filter-group" id="family-filters"></div>
+            </div>
+            <div class="filter-group">
+              <span class="filter-label">Status</span>
+              <div class="filter-group" id="status-filters"></div>
+            </div>
+          </div>
+
+          <p class="count" id="count"></p>
+          <div class="register" id="register"></div>
+
+          <div class="colophon">
+            <p>
+              Every entry links to the notification it came from. Entries marked
+              &ldquo;auto, unchecked&rdquo; were extracted by machine and nobody has read
+              them yet — open the source before you act on one.
+            </p>
+            <p>
+              Compliance Wiki is a research tool. It is not legal advice, and it does not
+              replace your own reading of the statute.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------- pipeline -->
+      <section class="view" id="view-pipeline" role="tabpanel" aria-labelledby="tab-pipeline" hidden>
+        <div class="shell">
+          <div class="view-intro">
+            <h2>What the register is doing right now</h2>
+            <p>
+              Watchers hash listing pages on a cadence. A changed hash opens a job, and the
+              job walks left to right. Nothing is published above the tier its mechanical
+              check earned — a failed check publishes anyway, labelled unchecked, rather
+              than sitting invisible in a queue.
+            </p>
+          </div>
+
+          <div class="board" id="board"></div>
+
+          <div class="stats" id="stats"></div>
+
+          <div class="two-col">
+            <div>
+              <p class="col-head">Event log</p>
+              <div class="log" id="log"></div>
+            </div>
+            <div>
+              <p class="col-head">Verification queue</p>
+              <div id="queue"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------- sources -->
+      <section class="view" id="view-sources" role="tabpanel" aria-labelledby="tab-sources" hidden>
+        <div class="shell">
+          <div class="view-intro">
+            <h2>Source registry</h2>
+            <p>
+              One config entry per watched source: URL, poll cadence, parser, and the update
+              frequency we expect from it. The expected frequency is the important column —
+              a scraper returning zero results after a site redesign is silent failure, and
+              it is the main operational risk in the whole system.
+            </p>
+          </div>
+          <div id="source-alert"></div>
+          <table class="table" id="sources-table">
+            <thead>
+              <tr>
+                <th>Source</th>
+                <th>Cadence</th>
+                <th>Parser</th>
+                <th>Last check</th>
+                <th>Last change</th>
+                <th>Dead-man's switch</th>
+              </tr>
+            </thead>
+            <tbody id="sources-body"></tbody>
+          </table>
+          <p class="search-note" id="sources-foot"></p>
+        </div>
+      </section>
+
+      <!-- ------------------------------- accuracy -->
+      <section class="view" id="view-accuracy" role="tabpanel" aria-labelledby="tab-accuracy" hidden>
+        <div class="shell">
+          <div class="view-intro">
+            <h2>Golden dataset and the auto-publish gate</h2>
+            <p>
+              200 historical amendments with known correct output, scored per
+              <code>changeType</code>. A class is allowed to publish unattended only while it
+              measures above 99% on this set. Two classes are below the gate today, and one is
+              blocked whatever it scores.
+            </p>
+          </div>
+          <div id="gates"></div>
+
+          <p class="col-head">Why commencement is hard-blocked</p>
+          <div class="prose">
+            <p>
+              Commencement scope in Indian law cannot be determined mechanically. Sections of
+              an act are routinely brought into force in tranches years apart, and a
+              notification appointing a date rarely enumerates which sub-provisions it
+              actually switches on. A model reading that text produces a confident answer to a
+              question the text does not settle. So the rule is structural, not statistical:
+              <code>commencement</code> never auto-promotes past <code>auto</code>, and the
+              score above is reported only to keep us honest about how wrong it would be.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------- method -->
+      <section class="view" id="view-method" role="tabpanel" aria-labelledby="tab-method" hidden>
+        <div class="shell">
+          <div class="view-intro">
+            <h2>How a notification becomes a record</h2>
+          </div>
+          <div class="prose">
+            <h2>Three tiers, one pipeline</h2>
+            <p>
+              <strong>auto</strong> — machine-extracted, live immediately, labelled as
+              unchecked. <strong>reconciled</strong> — two independent sources produced an
+              identical record. <strong>verified</strong> — a human cleared it. Speed comes
+              from tier one, trust from tier three, and the label on the record is what keeps
+              that honest. Nothing is ever silently upgraded: every promotion is written into
+              the record's own audit trail, visible from the drawer on any entry.
+            </p>
+
+            <h2>The mechanical check</h2>
+            <p>
+              For a substitution, the extracted old text must appear verbatim exactly once at
+              the cited section of the base text. Exactly once matters as much as verbatim: if
+              the quoted text occurs twice, the amendment could attach to either position, and
+              the change is not provable. Pass means the change is mechanically provable and
+              can publish unattended. Fail routes to review — and still publishes at
+              <code>auto</code>, because a labelled unchecked record is more useful than a
+              missing one.
+            </p>
+
+            <h2>Sourcing</h2>
+            <p>
+              The corpus is built from primary sources only — India Code for the baseline, the
+              Gazette of India for authority, ministry notification pages for speed. Never from
+              a competitor's compilation: those are protectable by selection and arrangement.
+              Every source respects <code>robots.txt</code> and a rate limit, and every row
+              carries its provenance.
+            </p>
+
+            <h2>What is not built yet</h2>
+            <ol>
+              <li>
+                <strong>Storage with version history.</strong> Records live in a flat file.
+                They need a database that can render any section as it stood on any date.
+              </li>
+              <li>
+                <strong>The full source registry.</strong> Nine of the forty-two sources are
+                configured with a parser and a dead-man's-switch threshold.
+              </li>
+              <li>
+                <strong>Two classes below the gate.</strong> Supersession under-reports which
+                allied rule sets it sweeps up; that is an extraction problem with a known fix.
+              </li>
+              <li>
+                <strong>Human queue tooling.</strong> Reviewers currently clear records against
+                the PDF by hand. The diff view here is the seed of the tool they need.
+              </li>
+            </ol>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="drawer-root"></div>
+
+    <script src="src/data.js"></script>
+    <script src="src/pipeline.js"></script>
+    <script src="src/app.js"></script>
+  </body>
+</html>
