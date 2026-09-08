@@ -6,26 +6,53 @@ the open next to it.
 
 Open `index.html` in a browser. No build step, no dependencies.
 
+## Status of the data
+
+**Every record is real.** The register holds ten notifications fetched from the
+Reserve Bank of India's own pages on 8 September 2026, each carrying the sha256
+of the bytes received. No record, field or timestamp is invented.
+
+What that honesty costs is visible on the page:
+
+- **One regulator.** Two of the seven configured sources refuse requests from
+  this machine (MCA returns 403, the Gazette resets the connection), and three
+  more are reachable but not yet harvested. The Companies Act, GST, SEBI and
+  Income-tax families therefore hold *no records at all*.
+- **Everything is `auto`.** Nothing has been reconciled — that needs a second
+  independent source, and the Gazette is the unreachable one — and nothing has
+  been read by a human.
+- **One check has actually run.** For `rbi-2026-27-245` the base Directions text
+  was fetched and searched: the old phrase occurs 0 times, the new one twice,
+  because RBI revises master directions in place. The check fails, and the
+  failure is informative. Every other record reports its check as `not-run`.
+- **Nothing has been scored.** The golden dataset does not exist, so the
+  Accuracy view reports no figures and auto-publish is off for all five classes.
+
+Fields the pipeline cannot determine are `null` and render as unknown:
+`changeType` is set only where the instrument's own words settle it, `effective`
+only where commencement is stated, and `diff` only where the instrument quotes
+the text it replaces.
+
 ## What exists now
 
-A working front end over seeded data, in five views:
+A working front end over the captured corpus, in five views:
 
 | View | What it shows |
 | --- | --- |
-| **Register** | The public wiki. Full-text search, filters by law family and verification status, and a record drawer on every entry: all twelve schema fields, who the change touches, the before/after text, the mechanical check that ran, every source capture with its hash, the extraction's per-field confidence, and the full audit trail. |
-| **Pipeline** | The live half. Watch → Fetch → Extract → Check → Publish, with jobs moving through it, an event log, session counters, and the verification queue. |
-| **Sources** | The source registry — URL, cadence, parser, last check, last change, and the dead-man's-switch threshold per source. One source is currently silent and the page says so loudly. |
-| **Accuracy** | Golden-dataset score per `changeType` against the 99% auto-publish gate, and which classes are consequently allowed to publish unattended. |
+| **Register** | The public wiki. Full-text search, filters by law family and verification status, and a record drawer on every entry: every schema field, who the instrument is addressed to, the before/after text where the instrument quotes it, the mechanical check and its result, each source capture with byte count and hash, and the full audit trail. |
+| **Pipeline** | The capture run, replayed. Watch → Fetch → Parse → Check → Publish, with the real source probes, an event log, counters, and the unchecked queue. |
+| **Sources** | The source registry — URL, parser, the HTTP status each host returned during the capture run, and how many records it produced. Two hosts are unreachable and the page says so loudly. |
+| **Accuracy** | The auto-publish gate, and the fact that nothing has been measured against it yet. |
 | **Method** | The rules in prose: three tiers, the mechanical check, sourcing, and what is not built yet. |
 
-`src/data.js` is the working record schema — the ingestion pipeline's job is to
-produce objects in exactly that shape. `src/pipeline.js` is a scripted run of
-that pipeline; swap `SCRIPT` for a websocket and no view changes, because every
-view renders from `Store` and re-renders on `Store` events.
+`src/data.js` is the captured corpus and the working record schema.
+`src/pipeline.js` replays the run that produced it — the source probes, the ten
+detections, the parses, the one executed check — then holds at the end state
+rather than looping. Swap the replay for a live watcher and no view changes,
+because every view renders from `Store` and re-renders on `Store` events.
 
-The transport control in the masthead pauses the run or speeds it up. One
-simulated second is one wall minute, so a session covers a working morning and
-then loops.
+The transport control in the masthead pauses the replay, speeds it up, or
+restarts it.
 
 ## The record
 
@@ -44,7 +71,8 @@ then loops.
 | `status` | `auto`, `reconciled`, or `verified`. |
 | `sourceUrl` | Link to the original. Required on every record. |
 | `appliesTo` | Who the change actually binds. Display only. |
-| `pipeline` | The audit surface: `firstSeen`, `provenance[]`, `extraction`, `check`, `diff`, `audit[]`. Never edited by hand. |
+| `pdfUrl` | Direct link to the original PDF where the source publishes one. |
+| `pipeline` | The audit surface: `firstSeen`, `provenance[]` (byte counts and hashes), `parse`, `check`, `diff`, `audit[]`. Never edited by hand. |
 
 ## Publication rules
 

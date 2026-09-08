@@ -66,13 +66,13 @@
                 id="search"
                 type="search"
                 autocomplete="off"
-                placeholder="Search by section, rule, form, or issuing body"
+                placeholder="Search by paragraph, direction, or subject"
               />
             </div>
             <p class="search-note">
-              Try &ldquo;section 135&rdquo;, &ldquo;GSTR-9C&rdquo;, &ldquo;DIR-3&rdquo;, or
-              &ldquo;commencement&rdquo;. Open any entry for its full provenance.
-            </p>
+            Try &ldquo;NRE deposits&rdquo;, &ldquo;sanctions&rdquo;, or &ldquo;co-operative&rdquo;.
+            Open any entry for its full provenance, down to the hash of the bytes fetched.
+          </p>
           </div>
         </div>
 
@@ -90,10 +90,12 @@
 
 
           <div class="specimen">
-            <strong>Specimen data.</strong> Every record on this page was written to exercise the
-            schema. The notification numbers, dates, statutory text and source links are
-            <em>not real</em> — no entry here has a gazette behind it, and nothing on this page
-            should be relied on or cited. The pipeline below is a scripted run, not a live feed.
+            <strong>Ten records, one source, one capture.</strong> Every entry was fetched from
+            the Reserve Bank of India's own notifications pages on 8 September 2026 and carries the
+            sha256 of the bytes received. Six other sources are configured; two of them refuse
+            requests from this machine, so the Companies Act, GST, SEBI and Income-tax families
+            have <em>no records at all</em> — not zero changes, zero coverage. Every record is
+            labelled unchecked, because none has been read by a human or matched against a second source.
           </div>
 
           <p class="count" id="count"></p>
@@ -101,9 +103,9 @@
 
           <div class="colophon">
             <p>
-              <strong>This is a demonstration of the interface, not a source of law.</strong>
-              The register is populated with specimen records; none of them corresponds to an
-              actual notification.
+              <strong>Coverage here is one regulator deep and one day wide.</strong> Do not read an
+              empty search result as "no such amendment exists" — read it as "we have not captured
+              that source".
             </p>
             <p>
               Every entry links to the notification it came from. Entries marked
@@ -122,21 +124,24 @@
       <section class="view" id="view-pipeline" role="tabpanel" aria-labelledby="tab-pipeline" hidden>
         <div class="shell">
           <div class="view-intro">
-            <h2>What the register is doing right now</h2>
+            <h2>The capture run, replayed</h2>
             <p>
-              Watchers hash listing pages on a cadence. A changed hash opens a job, and the
-              job walks left to right. Nothing is published above the tier its mechanical
-              check earned — a failed check publishes anyway, labelled unchecked, rather
-              than sitting invisible in a queue.
+              This is not a simulation. It replays the run that produced the register: seven sources
+              probed, two of them refusing the connection, ten notifications detected on the one
+              source that answered, each fetched and parsed, one mechanical check actually executed
+              against a base text we also fetched. A failed check publishes anyway, labelled
+              unchecked, rather than sitting invisible in a queue.
             </p>
           </div>
 
 
           <div class="specimen">
-            <strong>Specimen data.</strong> Every record on this page was written to exercise the
-            schema. The notification numbers, dates, statutory text and source links are
-            <em>not real</em> — no entry here has a gazette behind it, and nothing on this page
-            should be relied on or cited. The pipeline below is a scripted run, not a live feed.
+            <strong>Ten records, one source, one capture.</strong> Every entry was fetched from
+            the Reserve Bank of India's own notifications pages on 8 September 2026 and carries the
+            sha256 of the bytes received. Six other sources are configured; two of them refuse
+            requests from this machine, so the Companies Act, GST, SEBI and Income-tax families
+            have <em>no records at all</em> — not zero changes, zero coverage. Every record is
+            labelled unchecked, because none has been read by a human or matched against a second source.
           </div>
 
           <div class="board" id="board"></div>
@@ -162,10 +167,10 @@
           <div class="view-intro">
             <h2>Source registry</h2>
             <p>
-              One config entry per watched source: URL, poll cadence, parser, and the update
-              frequency we expect from it. The expected frequency is the important column —
-              a scraper returning zero results after a site redesign is silent failure, and
-              it is the main operational risk in the whole system.
+              One config entry per watched source, and the HTTP status each one returned during the
+              capture run. Reachability is the first thing a register like this has to be honest
+              about: a source that refuses the connection produces no records, and a register that
+              hides that fact looks identical to one where nothing happened.
             </p>
           </div>
           <div id="source-alert"></div>
@@ -173,11 +178,10 @@
             <thead>
               <tr>
                 <th>Source</th>
-                <th>Cadence</th>
+                <th>Probe</th>
                 <th>Parser</th>
-                <th>Last check</th>
-                <th>Last change</th>
-                <th>Dead-man's switch</th>
+                <th>Records</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody id="sources-body"></tbody>
@@ -192,10 +196,9 @@
           <div class="view-intro">
             <h2>Golden dataset and the auto-publish gate</h2>
             <p>
-              200 historical amendments with known correct output, scored per
-              <code>changeType</code>. A class is allowed to publish unattended only while it
-              measures above 99% on this set. Two classes are below the gate today, and one is
-              blocked whatever it scores.
+              The design says a class may publish unattended only while it measures above 99% on a
+              golden set of historical amendments with known correct output. That set has not been
+              built, so nothing has been measured, so nothing may promote.
             </p>
           </div>
           <div id="gates"></div>

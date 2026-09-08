@@ -14,10 +14,12 @@ const CHECK_LABEL = {
   fail: "Check failed — in review",
   blocked: "Auto-promotion blocked",
   review: "Routed to review",
+  "not-run": "Check not run",
 };
 
 const ACTOR_LABEL = {
   watcher: "watcher",
+  parser: "parser",
   extractor: "extractor",
   checker: "checker",
   reconciler: "reconciler",
@@ -130,10 +132,11 @@ function matches(change) {
 }
 
 function renderEntry(change) {
-  const effective =
-    change.effective === "Notified in tranches"
-      ? "Commencement in tranches"
-      : "In force " + formatDate(change.effective);
+  const effective = !change.effective
+    ? "Commencement not stated"
+    : /^\d{4}-/.test(change.effective)
+    ? "In force " + formatDate(change.effective)
+    : change.effective;
   const check = change.pipeline.check;
   const isNew = Store.newSincePageLoad.has(change.id);
 
@@ -150,7 +153,7 @@ function renderEntry(change) {
         <div class="entry-meta">
           <span>${escapeHtml(change.body)}</span>
           <span class="ref">${escapeHtml(change.reference)}</span>
-          <span>${escapeHtml(change.changeType)}</span>
+          <span>${escapeHtml(change.changeType || "unclassified")}</span>
           <a href="${escapeHtml(change.sourceUrl)}" rel="noreferrer" target="_blank">Source</a>
         </div>
       </div>
@@ -230,16 +233,6 @@ function buildChips(container, values, bucket, labels) {
 
 /* ---------------------------------------------------------------- drawer */
 
-function confidenceRow(field, value) {
-  const pct = Math.round(value * 100);
-  return `
-    <div class="conf-row">
-      <span>${escapeHtml(field)}</span>
-      <span class="conf-bar"><span class="conf-fill${value < 0.9 ? " low" : ""}" style="width:${pct}%"></span></span>
-      <span class="conf-value">${pct}%</span>
-    </div>`;
-}
-
 function renderDrawer() {
   if (!state.open) {
     el.drawerRoot.innerHTML = "";
@@ -291,18 +284,29 @@ function renderDrawer() {
           <dl class="kv">
             <dt>id</dt><dd class="mono">${escapeHtml(c.id)}</dd>
             <dt>family</dt><dd>${escapeHtml(c.family)}</dd>
-            <dt>amends</dt><dd>${escapeHtml(c.amends)}</dd>
-            <dt>changeType</dt><dd>${escapeHtml(c.changeType)}</dd>
+            <dt>amends</dt><dd>${escapeHtml(c.amends || "— not stated by the instrument")}</dd>
+            <dt>changeType</dt><dd>${escapeHtml(
+              c.changeType || "— unclassified; the instrument's wording does not settle it"
+            )}</dd>
             <dt>body</dt><dd>${escapeHtml(c.body)}</dd>
             <dt>reference</dt><dd class="mono">${escapeHtml(c.reference)}</dd>
             <dt>published</dt><dd>${escapeHtml(formatDate(c.published))}</dd>
             <dt>effective</dt><dd>${escapeHtml(
-              /^\d{4}-/.test(c.effective) ? formatDate(c.effective) : c.effective
+              !c.effective
+                ? "— not stated by the instrument"
+                : /^\d{4}-/.test(c.effective)
+                ? formatDate(c.effective)
+                : c.effective
             )}</dd>
             <dt>status</dt><dd>${escapeHtml(STATUS_LABEL[c.status] || c.status)}</dd>
             <dt>sourceUrl</dt><dd><a href="${escapeHtml(c.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(
     c.sourceUrl
   )}</a></dd>
+            ${
+              c.pdfUrl
+                ? `<dt>pdf</dt><dd><a href="${escapeHtml(c.pdfUrl)}" target="_blank" rel="noreferrer">original PDF</a></dd>`
+                : ""
+            }
           </dl>
           <p class="entry-summary" style="margin-top:14px">${escapeHtml(c.summary)}</p>
         </div>
@@ -316,25 +320,36 @@ function renderDrawer() {
 
         <div class="section">
           <h3>What changed</h3>
-          <div class="diff">
+          ${
+            p.diff
+              ? `<div class="diff">
             <div class="diff-cite">${escapeHtml(p.diff.cite)}</div>
-            <div class="diff-row diff-before"><span class="mark">−</span><span>${escapeHtml(
-              p.diff.before
-            )}</span></div>
-            <div class="diff-row diff-after"><span class="mark">+</span><span>${escapeHtml(
-              p.diff.after
-            )}</span></div>
+            <div class="diff-row diff-before"><span class="mark">−</span><span>${escapeHtml(p.diff.before)}</span></div>
+            <div class="diff-row diff-after"><span class="mark">+</span><span>${escapeHtml(p.diff.after)}</span></div>
           </div>
+          <p class="search-note">Both phrases are quoted verbatim in the instrument itself, not reconstructed.</p>`
+              : `<p class="callout">The instrument does not quote the text it replaces, so there is no diff to show. Producing one means fetching the base document and locating the cited provision — not yet done for this record.</p>`
+          }
         </div>
 
         <div class="section">
           <h3>Mechanical check — ${escapeHtml(p.check.name)}</h3>
           <p class="callout ${escapeHtml(p.check.result)}">${escapeHtml(p.check.detail)}</p>
           ${
-            p.check.occurrences !== null && p.check.occurrences !== undefined
-              ? `<dl class="kv" style="margin-top:12px"><dt>occurrences</dt><dd class="mono">${escapeHtml(
-                  p.check.occurrences
-                )} — pass requires exactly 1</dd></dl>`
+            p.check.occurrences
+              ? `<dl class="kv" style="margin-top:12px">
+                   <dt>old phrase</dt><dd class="mono">${escapeHtml(p.check.occurrences.old)} occurrences — a pass requires exactly 1</dd>
+                   <dt>new phrase</dt><dd class="mono">${escapeHtml(p.check.occurrences.new)} occurrences</dd>
+                 </dl>`
+              : ""
+          }
+          ${
+            p.check.base
+              ? `<dl class="kv" style="margin-top:10px">
+                   <dt>base text</dt><dd><a href="${escapeHtml(p.check.base.url)}" target="_blank" rel="noreferrer">${escapeHtml(p.check.base.url)}</a></dd>
+                   <dt>base sha256</dt><dd class="mono">${escapeHtml(p.check.base.sha256)}…</dd>
+                   <dt>base captured</dt><dd class="mono">${escapeHtml(formatStamp(p.check.base.at))}</dd>
+                 </dl>`
               : ""
           }
         </div>
@@ -350,19 +365,16 @@ function renderDrawer() {
         </div>
 
         <div class="section">
-          <h3>Extraction</h3>
+          <h3>How this record was produced</h3>
           <dl class="kv">
-            <dt>model</dt><dd class="mono">${escapeHtml(p.extraction.model)}</dd>
-            <dt>schema</dt><dd class="mono">${escapeHtml(p.extraction.schema)}</dd>
-            <dt>tokens</dt><dd class="mono">${p.extraction.tokens.toLocaleString("en-IN")}</dd>
-            <dt>schema retries</dt><dd class="mono">${escapeHtml(p.extraction.retries)}</dd>
+            <dt>method</dt><dd>${escapeHtml(p.parse.method)}</dd>
+            <dt>parser</dt><dd class="mono">${escapeHtml(p.parse.parser)}</dd>
+            <dt>fetched</dt><dd class="mono">${escapeHtml(formatStamp(p.parse.fetchedAt))}</dd>
+            <dt>bytes</dt><dd class="mono">${p.parse.bytes.toLocaleString("en-IN")}</dd>
+            <dt>sha256</dt><dd class="mono">${escapeHtml(p.parse.sha256)}…</dd>
+            <dt>model</dt><dd>${escapeHtml(p.parse.model || "none")}</dd>
           </dl>
-          <div class="confidence" style="margin-top:14px">
-            ${Object.entries(p.extraction.confidence)
-              .map(([field, value]) => confidenceRow(field, value))
-              .join("")}
-          </div>
-          <p class="search-note">Field confidence is reported, never acted on alone. Promotion is decided by the mechanical check and the class gate.</p>
+          <p class="search-note">${escapeHtml(p.parse.note)}</p>
         </div>
 
         <div class="section">
@@ -432,15 +444,14 @@ function renderBoard() {
 
 function renderStats() {
   const c = Store.counters;
-  const live = Store.changes.length;
-  const unchecked = Store.changes.filter((x) => x.status === "auto").length;
+  const withDiff = Store.changes.filter((x) => x.pipeline.diff).length;
   const stats = [
-    [live, "changes on record"],
-    [c.polls, "listing polls this session"],
-    [c.detected, "changes detected"],
-    [c.published, "published to the register"],
-    [c.promoted, "tier promotions"],
-    [unchecked, "still labelled unchecked"],
+    [Store.changes.length, "records published"],
+    [c.probes, "sources probed"],
+    [c.blocked, "sources unreachable"],
+    [withDiff, "records with a verbatim diff"],
+    [c.checksRun, "mechanical checks run"],
+    [Store.changes.length, "still labelled unchecked"],
   ];
   el.stats.innerHTML = stats
     .map(([n, k]) => `<div class="stat"><div class="n">${escapeHtml(n)}</div><div class="k">${escapeHtml(k)}</div></div>`)
@@ -466,26 +477,22 @@ function renderLog() {
 }
 
 function renderQueue() {
-  const queued = Store.changes.filter(
-    (c) => c.status === "auto" || (c.status === "reconciled" && c.pipeline.check.result !== "pass")
-  );
+  const queued = Store.changes;
   if (!queued.length) {
-    el.queue.innerHTML = `<p class="lane-empty">Queue is clear.</p>`;
+    el.queue.innerHTML = `<p class="lane-empty">Nothing published yet in this replay.</p>`;
     return;
   }
   el.queue.innerHTML =
-    `<p class="search-note" style="margin:0 0 10px">${queued.length} record${
-      queued.length === 1 ? "" : "s"
-    } live and labelled unchecked, waiting on a human. They are public the whole time.</p>` +
+    `<p class="search-note" style="margin:0 0 10px">Every record is live and labelled unchecked. None has been reconciled
+      against a second source — the Gazette, which is what a second source would mean here, is unreachable — and none has
+      been read by a human.</p>` +
     queued
       .map(
         (c) => `
       <div class="job held" data-id="${escapeHtml(c.id)}" role="button" tabindex="0" style="cursor:pointer;margin-bottom:8px">
         <strong>${escapeHtml(c.title)}</strong>
-        <span class="job-meta">${escapeHtml(c.reference)} · ${escapeHtml(c.changeType)}</span>
-        <div class="job-note">${escapeHtml(CHECK_LABEL[c.pipeline.check.result] || "")} — ${escapeHtml(
-          c.pipeline.check.name
-        )}</div>
+        <span class="job-meta">${escapeHtml(c.reference.split(" · ")[0])} · ${escapeHtml(c.changeType || "unclassified")}</span>
+        <div class="job-note">${escapeHtml(CHECK_LABEL[c.pipeline.check.result] || "")}</div>
       </div>`
       )
       .join("");
@@ -494,73 +501,72 @@ function renderQueue() {
 /* --------------------------------------------------------------- sources */
 
 function renderSources() {
-  const silent = SOURCES.filter((s) => s.health === "silent");
-  el.sourceAlert.innerHTML = silent.length
-    ? silent
-        .map(
-          (s) => `<div class="banner"><strong>Dead-man's switch fired — ${escapeHtml(
-            s.name
-          )}.</strong> ${escapeHtml(s.note)}</div>`
-        )
-        .join("")
+  const blocked = SOURCES.filter((s) => s.health === "blocked");
+  el.sourceAlert.innerHTML = blocked.length
+    ? `<div class="banner"><strong>${blocked.length} of ${SOURCE_TOTAL} sources could not be reached from this container.</strong>
+        ${escapeHtml(blocked.map((s) => s.name).join("; "))}. A 403 or a reset from a cloud IP is not evidence the site is down —
+        these hosts commonly refuse datacenter ranges. Until they answer, the families behind them have no records at all.</div>`
     : "";
 
   el.sourcesBody.innerHTML = SOURCES.map((s) => {
-    const overdue = s.lastChangeHours > s.expectedGapHours;
+    const label =
+      s.health === "healthy"
+        ? "captured"
+        : s.health === "partial"
+        ? "reachable, not harvested"
+        : "unreachable";
     return `
-      <tr class="${s.health === "silent" ? "row-silent" : ""}">
+      <tr class="${s.health === "blocked" ? "row-silent" : ""}">
         <td>
           <div class="src-name">${escapeHtml(s.name)}</div>
           <div class="src-url">${escapeHtml(s.url)}</div>
-          ${s.note ? `<div class="src-note">${escapeHtml(s.note)}</div>` : ""}
+          <div class="src-note">${escapeHtml(s.note)}</div>
         </td>
-        <td class="mono">${escapeHtml(s.cadence >= 1440 ? "daily" : s.cadence + " min")}</td>
-        <td class="mono">${escapeHtml(s.parser)}</td>
-        <td class="mono">${escapeHtml(relMinutes(s.lastCheckMin))}</td>
-        <td class="mono">${escapeHtml(relHours(s.lastChangeHours))}</td>
+        <td class="mono">${escapeHtml(s.probe === null ? "reset" : s.probe)}</td>
+        <td class="mono">${escapeHtml(s.parser || "—")}</td>
+        <td class="mono">${escapeHtml(s.captured)}</td>
         <td>
-          <span class="health"><span class="dot ${escapeHtml(s.health)}"></span>${escapeHtml(
-      s.health === "silent"
-        ? "fired"
-        : overdue
-        ? "overdue"
-        : "expects ≤ " + Math.round(s.expectedGapHours / 24) + " d"
-    )}</span>
+          <span class="health"><span class="dot ${escapeHtml(
+            s.health === "healthy" ? "healthy" : s.health === "partial" ? "slow" : "silent"
+          )}"></span>${escapeHtml(label)}</span>
         </td>
       </tr>`;
   }).join("");
 
-  el.sourcesFoot.textContent = `${SOURCES.length} of ${SOURCE_TOTAL} sources shown. The rest are configured but not yet parsed — a source with no parser is a source we are not really watching.`;
+  el.sourcesFoot.textContent =
+    "Probe results are the HTTP statuses this container received on 8 September 2026 at 23:20 IST, not a general claim about these websites.";
 }
 
 /* -------------------------------------------------------------- accuracy */
 
 function renderGates() {
-  el.gates.innerHTML = GOLDEN.map((g) => {
-    const pct = g.accuracy * 100;
-    const under = g.accuracy < g.gate;
-    const scale = (v) => ((v - 0.85) / 0.15) * 100; /* 85%–100% window */
-    return `
+  el.gates.innerHTML =
+    `<div class="banner" style="border-color:var(--auto);background:var(--auto-bg);color:#6d4610">
+       <strong>Nothing has been scored.</strong> The golden dataset and the scoring harness do not exist yet, so there is no
+       accuracy figure for any class. Auto-publish is therefore off for all five: no record in this register can promote past
+       <em>auto</em>, whatever a check returns.
+     </div>` +
+    GOLDEN.map(
+      (g) => `
       <div style="padding:14px 0;border-bottom:1px solid var(--rule)">
         <div class="gate-row">
           <div>
             <div style="font-weight:500">${escapeHtml(g.changeType)}</div>
             <div class="search-note" style="margin:0">${escapeHtml(g.n)} golden records</div>
           </div>
-          <div class="gate-bar">
-            <div class="gate-fill${under ? " under" : ""}" style="width:${Math.max(2, scale(g.accuracy))}%"></div>
-            <div class="gate-mark" style="left:${scale(g.gate)}%"></div>
-          </div>
-          <div class="gate-verdict ${g.autoPublish ? "on" : "off"}">
-            <div class="mono" style="font-family:var(--mono);font-size:13px">${pct.toFixed(1)}%</div>
-            <div>${g.autoPublish ? "auto-publish on" : "auto-publish off"}</div>
+          <div class="gate-bar"><div class="gate-mark" style="left:${((g.gate - 0.85) / 0.15) * 100}%"></div></div>
+          <div class="gate-verdict off">
+            <div class="mono" style="font-family:var(--mono);font-size:13px">not measured</div>
+            <div>${g.hardBlocked ? "hard-blocked" : "auto-publish off"}</div>
           </div>
         </div>
-        <p class="src-note" style="margin:8px 0 0;max-width:74ch">${escapeHtml(g.failNote)} <span class="search-note">Last scored ${escapeHtml(
-      formatDate(g.lastRun)
-    )}; gate at ${(g.gate * 100).toFixed(0)}%.</span></p>
-      </div>`;
-  }).join("");
+        ${
+          g.hardBlocked
+            ? `<p class="src-note" style="margin:8px 0 0;max-width:74ch">Blocked structurally, not statistically: commencement scope in Indian law cannot be determined mechanically, so this class would stay at <em>auto</em> even at a perfect score.</p>`
+            : ""
+        }
+      </div>`
+    ).join("");
 }
 
 /* ------------------------------------------------------------ transport */
@@ -569,10 +575,10 @@ function renderClock() {
   const now = wallClock(Store.clock);
   el.simclock.textContent = clockText(now);
   el.pulse.classList.toggle("paused", !Store.running);
-  el.playpause.textContent = Store.running ? "Pause" : "Resume";
+  el.playpause.textContent = Store.complete ? "Replay" : Store.running ? "Pause" : "Resume";
   el.playpause.setAttribute("aria-pressed", String(!Store.running));
-  const src = SOURCES.reduce((a, b) => (a.lastCheckMin <= b.lastCheckMin ? a : b));
-  el.syncText.textContent = `${SOURCE_TOTAL} sources watched · last checked ${relMinutes(src.lastCheckMin)}`;
+  const reachable = SOURCES.filter((s) => s.probe === 200).length;
+  el.syncText.textContent = `${reachable} of ${SOURCE_TOTAL} sources reachable · capture of 8 Sep 2026`;
 }
 
 /* ------------------------------------------------------------ view swap */
