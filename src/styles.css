@@ -842,3 +842,24 @@ a {
   .drawer-body { padding: 4px 20px 60px; }
   .drawer-head { padding: 18px 20px 14px; }
 }
+
+/* ---------- specimen notice ----------
+   The register is populated with records written to exercise the schema.
+   Saying so, in the same place every time, is not optional: a page that
+   looks like a compliance register and is not one is the failure mode
+   this whole project exists to avoid. */
+
+.specimen {
+  border: 1px solid var(--auto);
+  border-left-width: 3px;
+  background: var(--auto-bg);
+  color: #6d4610;
+  border-radius: 3px;
+  padding: 12px 15px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin: 20px 0 0;
+  max-width: 78ch;
+}
+
+.specimen strong { font-weight: 500; }
